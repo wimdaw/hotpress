@@ -1006,18 +1006,25 @@ function bindArticleActions() {
   })
   document.querySelectorAll('[data-recover]').forEach(function (b) {
     b.onclick = async function () {
+      var artId = b.dataset.recover
+      var rowEl = b.closest('tr')
+      var imgEl = rowEl ? rowEl.querySelector('.img-thumb') : null
       b.disabled = true
       b.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'
       toast('正在重新检索并生成新封面，请稍候…', 'info')
-      var d = await api('/admin/api/articles/' + b.dataset.recover + '/recover-cover', { method: 'POST' })
+      var d = await api('/admin/api/articles/' + artId + '/recover-cover', { method: 'POST' })
       if (d.success) {
         toast('封面已成功更新（来源：' + d.data.cover_source + '）', 'success')
-        loadArticleList()
+        if (imgEl && d.data.cover_url) {
+          var bustUrl = d.data.cover_url + (d.data.cover_url.startsWith('data:') ? '' : (d.data.cover_url.includes('?') ? '&' : '?') + '_t=' + Date.now())
+          imgEl.src = bustUrl
+        }
+        setTimeout(function () { loadArticleList() }, 500)
       } else {
         toast(d.message || '更换封面失败', 'error')
-        b.disabled = false
-        b.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>'
       }
+      b.disabled = false
+      b.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>'
     }
   })
 }

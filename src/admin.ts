@@ -526,29 +526,36 @@ export async function handleRegenerateCover(c: C) {
   const article = await getArticle(c.env, id)
   if (!article) return fail(c, '文章不存在', 404)
   const settings = await getSettings(c.env)
-  const oldCoverUrl = article.cover_url || ''
+  const oldCoverUrl = (article.cover_url || '').split('?')[0]
 
   let resolved: { url: string; source: string } | null = null
 
-  // 1) 优先网搜新图（取 3 张候选，过滤掉旧封面，确保换到新图）
-  const oldImages: ArticleImage[] = JSON.parse(article.images || '[]')
-  const queries = [...new Set(oldImages.map((im) => im.query))].slice(0, 2)
-  if (!queries.length) queries.push(article.title.slice(0, 24))
+  // 1) 换封面加入随机视觉修饰词，保证搜出完全不同维度的全新配图
+  const modifiers = ['纪实摄影', '现场特写', '概念视觉', '商务科技', '全景大图', '深度解读']
+  const randomMod = modifiers[Math.floor(Math.random() * modifiers.length)]
+  const cleanTitle = article.title.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ' ').trim()
+  const searchQueries = [
+    cleanTitle.slice(0, 16) + ' ' + randomMod,
+    cleanTitle.slice(0, 14) + ' 高清'
+  ]
 
   try {
     const { searchImages } = await import('./images')
-    const result = await searchImages(settings, queries, 3)
-    const newImage = result.images.find((im) => im.url && im.url !== oldCoverUrl)
+    const result = await searchImages(settings, searchQueries, 4)
+    // 优先选择与原封面不同的一张
+    const newImage = result.images.find((im) => im.url && !im.url.includes(oldCoverUrl.slice(0, 45)))
     if (newImage) {
       resolved = { url: newImage.url, source: newImage.source }
+    } else if (result.images.length && !result.images[0].url.includes(oldCoverUrl.slice(0, 45))) {
+      resolved = { url: result.images[0].url, source: result.images[0].source }
     }
   } catch { /* 忽略网搜异常 */ }
 
   // 2) 若网搜无新图，尝试用 Agnes AI 重新绘制一张高契合度封面
-  if (!resolved && settings.agnes_api_key) {
+  if ((!resolved || resolved.url.includes(oldCoverUrl.slice(0, 45))) && settings.agnes_api_key) {
     try {
       const { agnesGenerate, agnesNewsPrompt } = await import('./agnes')
-      const url = await agnesGenerate(settings, agnesNewsPrompt(article.title, '公众号封面插画'), '1024x1024')
+      const url = await agnesGenerate(settings, agnesNewsPrompt(article.title, '公众号封面插画，' + randomMod), '1024x1024')
       resolved = { url, source: 'agnes' }
     } catch { /* 忽略 Agnes 异常 */ }
   }
