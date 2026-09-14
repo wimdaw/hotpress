@@ -1,0 +1,12 @@
+# Cloudflare Pages 模式配置（Pages + D1 一体化部署）
+# 用法：npm run build && npx wrangler pages deploy dist/pages --config wrangler.pages.toml
+# database_id 用 `npx wrangler d1 create hotpress-db` 的返回值替换
+name = "hotpress"
+pages_build_output_dir = "dist/pages"
+compatibility_date = "2025-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hotpress-db"
+database_id = "a1cd23c7-c9f1-43e2-a9e9-77224cd3f959"

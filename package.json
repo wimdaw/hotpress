@@ -1,0 +1,26 @@
+{
+  "name": "hotpress",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "热点自动创作推送工作台 — 抓取全网热点 → 自动选题 → LLM 创作 → 配图 → 微信草稿推送（Cloudflare Pages/Workers + D1）",
+  "dependencies": {
+    "hono": "^4.13.7",
+    "turndown": "^7.2.4"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:pages": "wrangler pages deploy dist/pages --config wrangler.pages.toml",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260911.1",
+    "esbuild": "^0.25.0",
+    "js-yaml": "^5.4.1",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.107.0"
+  }
+}
