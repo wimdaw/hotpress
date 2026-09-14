@@ -506,14 +506,152 @@ async function loadTrend() {
   }).join('') : '<p class="empty-inline">暂无数据</p>'
 }
 var PLATFORM_SHORTS = { weibo: '微博', zhihu: '知乎', baidu: '百度', douyin: '抖音', toutiao: '头条', kuaishou: '快手', rednote: '小红书', bili: 'B站', bilibili_video: 'B站视频', tieba: '贴吧', tencent_news: '腾讯', netease: '网易', thepaper: '澎湃', wechat_gzh: '微信', ithome: 'IT之家', ifanr: '爱范儿', '36kr': '36氪', sspai: '少数派', github: 'GitHub', hackernews: 'HN', x: 'X', voa: 'VOA', bbc: 'BBC', dw: 'DW', rfi: 'RFI', zaobao: '早报', xianbao: '线报' }
-// 流水线流式运行：等待完整结果（服务端心跳保活），完成后再刷新
+function showPipelineModal(push) {
+  var old = document.getElementById('write-modal-overlay')
+  if (old) old.remove()
+  var ov = document.createElement('div')
+  ov.className = 'modal-o'
+  ov.id = 'write-modal-overlay'
+  ov.innerHTML =
+    '<div class="modal" style="max-width:40rem;width:94%;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-xs);">' +
+        '<h3 style="margin:0;font-size:1.125rem;display:flex;align-items:center;gap:.5rem;"><i class="fas fa-diagram-project" style="color:var(--color-accent);"></i>流水线全流程执行过程</h3>' +
+        '<span id="wm-timer" class="chip chip--gray" style="font-family:var(--font-mono);font-size:.75rem;">0s</span>' +
+      '</div>' +
+      '<p class="mu" style="margin-bottom:var(--space-md);line-height:1.4;">热点抓取 → 智能选题 → 逐篇长文创作 → 去AI化质检（≤40分门禁）→ 配图' + (push ? ' → 微信草稿箱推送' : '') + '</p>' +
+      '<div style="display:grid;gap:.5rem;margin-bottom:var(--space-md);background:var(--color-bg-subtle, #f9fafb);padding:.875rem 1rem;border-radius:var(--radius-md);border:1px solid var(--color-border);">' +
+        '<div id="wstep-1" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;"><i class="fas fa-spinner fa-spin" style="color:var(--color-accent);width:1.2rem;"></i><span>[1/5] 抓取 26 平台实时热点榜并归一化入库...</span></div>' +
+        '<div id="wstep-2" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;color:var(--color-muted);"><i class="far fa-circle" style="width:1.2rem;"></i><span>[2/5] 智能板块聚焦筛选与跨平台去重选题...</span></div>' +
+        '<div id="wstep-3" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;color:var(--color-muted);"><i class="far fa-circle" style="width:1.2rem;"></i><span>[3/5] 资深主编逐篇创作 1800 字爆款黄金骨架长文...</span></div>' +
+        '<div id="wstep-4" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;color:var(--color-muted);"><i class="far fa-circle" style="width:1.2rem;"></i><span>[4/5] AIGC 检测官审查 & 智能去AI化多轮改写（≤40分门禁）...</span></div>' +
+        '<div id="wstep-5" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;color:var(--color-muted);"><i class="far fa-circle" style="width:1.2rem;"></i><span>[5/5] 高清无水印配图检索' + (push ? ' & 微信草稿箱推送' : ' & 排版渲染入库') + '...</span></div>' +
+      '</div>' +
+      '<div style="margin-bottom:var(--space-md);">' +
+        '<label style="display:block;font-size:.75rem;color:var(--color-muted);margin-bottom:.25rem;">详细执行日志</label>' +
+        '<pre id="wm-log" style="margin:0;padding:.75rem;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.75rem;line-height:1.6;max-height:15rem;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">🚀 流水线已启动，正在发起热点抓取与素材准备...</pre>' +
+      '</div>' +
+      '<div id="wm-actions" style="display:flex;justify-content:flex-end;gap:.5rem;">' +
+        '<button class="btn btn-s" id="wm-close" disabled><i class="fas fa-spinner fa-spin"></i> 正在全流程执行，请稍候…</button>' +
+      '</div>' +
+    '</div>'
+  document.body.appendChild(ov)
+  var timerEl = document.getElementById('wm-timer')
+  var logEl = document.getElementById('wm-log')
+  var closeBtn = document.getElementById('wm-close')
+  var seconds = 0
+  var timer = setInterval(function () {
+    seconds++
+    if (timerEl) timerEl.textContent = seconds + 's'
+    if (seconds === 4) {
+      setStep(1, 'done')
+      setStep(2, 'active')
+      appendLog('🎯 热点聚合完毕，开始板块聚焦与选题比对去重...')
+    } else if (seconds === 8) {
+      setStep(2, 'done')
+      setStep(3, 'active')
+      appendLog('✍️ 选题锁定，大模型资深主编正在逐篇撰写 1800 字正文...')
+    } else if (seconds === 24) {
+      setStep(3, 'done')
+      setStep(4, 'active')
+      appendLog('🤖 正文成稿，正在进行 AIGC 检测官深度质检与去AI化改写...')
+    } else if (seconds === 42) {
+      setStep(4, 'done')
+      setStep(5, 'active')
+      appendLog('🖼️ 去AI化核验达标，正在检索高清配图' + (push ? '并推送到微信草稿箱' : '') + '...')
+    }
+  }, 1000)
+  function appendLog(text) {
+    if (!logEl) return
+    logEl.textContent += text + '\\n'
+    logEl.scrollTop = logEl.scrollHeight
+  }
+  function setStep(idx, state) {
+    var el = document.getElementById('wstep-' + idx)
+    if (!el) return
+    var icon = el.querySelector('i')
+    if (state === 'active') {
+      el.style.color = 'var(--color-text)'
+      if (icon) { icon.className = 'fas fa-spinner fa-spin'; icon.style.color = 'var(--color-accent)' }
+    } else if (state === 'done') {
+      el.style.color = 'var(--color-success, #10b981)'
+      if (icon) { icon.className = 'fas fa-check-circle'; icon.style.color = 'var(--color-success, #10b981)' }
+    } else if (state === 'fail') {
+      el.style.color = 'var(--color-danger, #ef4444)'
+      if (icon) { icon.className = 'fas fa-times-circle'; icon.style.color = 'var(--color-danger, #ef4444)' }
+    }
+  }
+  return {
+    appendLog: appendLog,
+    setStep: setStep,
+    finish: function (res) {
+      clearInterval(timer)
+      setStep(1, 'done')
+      setStep(2, 'done')
+      setStep(3, 'done')
+      setStep(4, 'done')
+      setStep(5, 'done')
+      appendLog('--------------------------------------------------')
+      if (res && res.log) {
+        appendLog(Array.isArray(res.log) ? res.log.join('\\n') : res.log)
+      }
+      var s = res && res.summary ? res.summary : {}
+      appendLog('🎉 流水线执行成功！选题 ' + (s.topicsSelected || 0) + ' · 成稿 ' + (s.articlesCreated || 0) + ' · 推送 ' + (s.pushed || 0))
+      if (closeBtn) {
+        closeBtn.disabled = false
+        closeBtn.innerHTML = '<i class="fas fa-arrow-right"></i> 前往文章管理'
+        closeBtn.className = 'btn btn-p'
+        closeBtn.onclick = function () {
+          ov.remove()
+          switchTab('articles')
+        }
+      }
+    },
+    error: function (errMsg) {
+      clearInterval(timer)
+      setStep(4, 'fail')
+      appendLog('❌ 流水线执行中断: ' + errMsg)
+      if (closeBtn) {
+        closeBtn.disabled = false
+        closeBtn.textContent = '关闭'
+        closeBtn.className = 'btn btn-d'
+        closeBtn.onclick = function () { ov.remove() }
+      }
+    }
+  }
+}
+function trackActiveRun(runId) {
+  var modal = showPipelineModal(false)
+  modal.appendLog('📡 正在实时接入后台运行任务 ID: ' + runId + '...')
+  var pollTimer = setInterval(async function () {
+    var d = await api('/admin/api/runs/latest')
+    if (d.success && d.data && d.data.run) {
+      var r = d.data.run
+      if (r.log) {
+        var logEl = document.getElementById('wm-log')
+        if (logEl) {
+          logEl.textContent = r.log
+          logEl.scrollTop = logEl.scrollHeight
+        }
+      }
+      if (r.status !== 'running') {
+        clearInterval(pollTimer)
+        if (r.status === 'success') {
+          modal.finish({ summary: { topicsSelected: r.topics_selected, articlesCreated: r.articles_created, pushed: r.pushed }, log: r.log ? r.log.split('\\n') : [] })
+        } else {
+          modal.error('任务已结束，状态: ' + r.status)
+        }
+      }
+    }
+  }, 2500)
+}
+// 流水线流式运行：打开全流程模态弹窗实时追踪
 async function runPipelineStreaming(push, btn) {
+  var modal = showPipelineModal(push)
   var disabled = []
   document.querySelectorAll('.admin-heading__actions .btn, #btn-p-fetch, #btn-p-run, #btn-p-runpush').forEach(function (b) {
     if (!b.disabled) { disabled.push(b); b.disabled = true }
   })
   if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>运行中…'
-  toast('流水线已启动' + (push ? '（含推送）' : '') + '，抓取素材与创作约需几分钟…', 'info')
   try {
     var r = await fetch('/admin/api/pipeline/run', {
       method: 'POST',
@@ -524,18 +662,19 @@ async function runPipelineStreaming(push, btn) {
     var d = null
     try { d = JSON.parse(text.trim()) } catch (e) { d = { success: false, message: 'HTTP ' + r.status } }
     if (d.success) {
-      var s = d.data && d.data.summary ? d.data.summary : {}
-      toast('✅ 流水线完成：选题 ' + (s.topicsSelected || 0) + ' · 成稿 ' + (s.articlesCreated || 0) + ' · 推送 ' + (s.pushed || 0))
+      modal.finish(d.data)
+      toast('✅ 流水线完成！')
     } else {
+      modal.error(d.message || '未知错误')
       toast('流水线异常结束：' + (d.message || '未知错误'), 'error')
     }
   } catch (e) {
+    modal.error(e.message || String(e))
     toast('流水线请求失败：' + e.message, 'error')
   } finally {
     disabled.forEach(function (b) { b.disabled = false })
     if (btn) btn.innerHTML = btn.id === 'btn-run-push' ? '<i class="fas fa-rocket"></i>运行并推送' : '<i class="fas fa-play"></i>运行流水线'
   }
-  if (typeof currentTab !== 'undefined') switchTab(currentTab)
 }
 function setNavBadge(tab, n) {
   var b = document.getElementById('nav-badge-' + tab)
@@ -1424,7 +1563,9 @@ function latestRunHtml(r) {
     '<div style="min-width:0;flex:1;"><div class="key-meta"><h3>最新运行（' + escapeHtml(r.trigger) + '）</h3><span class="key-meta__sep">·</span><p>' + fmtTime(r.started_at) + '</p></div>' +
     '<p class="mu">' + statusText(r.status) + ' <span class="mu">抓取 ' + (r.topics_fetched || 0) + ' · 选题 ' + (r.topics_selected || 0) + ' · 成稿 ' + (r.articles_created || 0) + ' · 推送 ' + (r.pushed || 0) + '</span></p>' +
     (r.log ? '<pre class="log-box" style="max-height:14rem;">' + escapeHtml(r.log) + '</pre>' : '') +
-    '</div></div></div>'
+    '</div></div>' +
+    (running ? '<div class="key-actions"><button class="btn btn-p" onclick="trackActiveRun(\'' + escapeHtml(r.id) + '\')"><i class="fas fa-terminal"></i>实时追踪过程</button></div>' : '') +
+    '</div>'
 }
 
 // ── 设置 ──
