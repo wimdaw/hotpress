@@ -1539,7 +1539,13 @@ async function refreshRuns() {
   var dLatest = await api('/admin/api/runs/latest')
   var latest = dLatest.success ? dLatest.data.run : null
   var elL = document.getElementById('pipeline-latest')
-  if (elL) elL.innerHTML = latest ? latestRunHtml(latest) : '<p class="empty-inline">尚未运行过</p>'
+  if (elL) {
+    elL.innerHTML = latest ? latestRunHtml(latest) : '<p class="empty-inline">尚未运行过</p>'
+    var trBtn = elL.querySelector('[data-track-run]')
+    if (trBtn) {
+      trBtn.onclick = function () { trackActiveRun(trBtn.dataset.trackRun) }
+    }
+  }
   var dRuns = await api('/admin/api/runs?limit=15')
   var elR = document.getElementById('pipeline-runs')
   if (elR && dRuns.success) {
@@ -1564,7 +1570,7 @@ function latestRunHtml(r) {
     '<p class="mu">' + statusText(r.status) + ' <span class="mu">抓取 ' + (r.topics_fetched || 0) + ' · 选题 ' + (r.topics_selected || 0) + ' · 成稿 ' + (r.articles_created || 0) + ' · 推送 ' + (r.pushed || 0) + '</span></p>' +
     (r.log ? '<pre class="log-box" style="max-height:14rem;">' + escapeHtml(r.log) + '</pre>' : '') +
     '</div></div>' +
-    (running ? '<div class="key-actions"><button class="btn btn-p" onclick="trackActiveRun(\'' + escapeHtml(r.id) + '\')"><i class="fas fa-terminal"></i>实时追踪过程</button></div>' : '') +
+    (running ? '<div class="key-actions"><button class="btn btn-p" data-track-run="' + escapeHtml(r.id) + '"><i class="fas fa-terminal"></i>实时追踪过程</button></div>' : '') +
     '</div>'
 }
 
