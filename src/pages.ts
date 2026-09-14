@@ -669,7 +669,7 @@ function showWriteModal(title) {
       '</div>' +
       '<div style="margin-bottom:var(--space-md);">' +
         '<label style="display:block;font-size:.75rem;color:var(--color-muted);margin-bottom:.25rem;">详细执行日志</label>' +
-        '<pre id="wm-log" style="margin:0;padding:.75rem;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.75rem;line-height:1.6;max-height:14rem;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">🚀 开始组织选题素材...\\n</pre>' +
+        '<pre id="wm-log" style="margin:0;padding:.75rem;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.75rem;line-height:1.6;max-height:14rem;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">🚀 开始组织选题素材...</pre>' +
       '</div>' +
       '<div id="wm-actions" style="display:flex;justify-content:flex-end;gap:.5rem;">' +
         '<button class="btn btn-s" id="wm-close" disabled><i class="fas fa-spinner fa-spin"></i> 正在创作，请稍候…</button>' +
