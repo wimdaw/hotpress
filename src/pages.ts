@@ -669,7 +669,7 @@ function showWriteModal(title) {
       '</div>' +
       '<div style="margin-bottom:var(--space-md);">' +
         '<label style="display:block;font-size:.75rem;color:var(--color-muted);margin-bottom:.25rem;">详细执行日志</label>' +
-        '<pre id="wm-log" style="margin:0;padding:.75rem;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.75rem;line-height:1.6;max-height:14rem;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">🚀 开始组织选题素材...\n</pre>' +
+        '<pre id="wm-log" style="margin:0;padding:.75rem;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.75rem;line-height:1.6;max-height:14rem;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">🚀 开始组织选题素材...\\n</pre>' +
       '</div>' +
       '<div id="wm-actions" style="display:flex;justify-content:flex-end;gap:.5rem;">' +
         '<button class="btn btn-s" id="wm-close" disabled><i class="fas fa-spinner fa-spin"></i> 正在创作，请稍候…</button>' +
@@ -696,7 +696,7 @@ function showWriteModal(title) {
   }, 1000)
   function appendLog(text) {
     if (!logEl) return
-    logEl.textContent += text + '\n'
+    logEl.textContent += text + '\\n'
     logEl.scrollTop = logEl.scrollHeight
   }
   function setStep(idx, state) {
@@ -724,7 +724,7 @@ function showWriteModal(title) {
       setStep(4, 'done')
       appendLog('--------------------------------------------------')
       if (res && res.log && res.log.length) {
-        appendLog(res.log.join('\n'))
+        appendLog(res.log.join('\\n'))
       }
       appendLog('🎉 创作完成！成稿：《' + (res.title || '') + '》')
       if (closeBtn) {
@@ -767,7 +767,7 @@ async function runSelectedWrites() {
   try {
     for (var i = 0; i < checkedBoxes.length; i++) {
       var key = checkedBoxes[i].dataset.key
-      modal.appendLog('\n[' + (i + 1) + '/' + checkedBoxes.length + '] 正在创作成稿...')
+      modal.appendLog('\\n[' + (i + 1) + '/' + checkedBoxes.length + '] 正在创作成稿...')
       var d = await api('/admin/api/write-article', { method: 'POST', body: { key: key } })
       if (d.success) {
         modal.appendLog('✅ 第 ' + (i + 1) + ' 篇成稿：《' + d.data.title + '》')
