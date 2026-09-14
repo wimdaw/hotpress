@@ -525,21 +525,42 @@ export async function handleRegenerateCover(c: C) {
   const id = c.req.param('id') as string
   const article = await getArticle(c.env, id)
   if (!article) return fail(c, '文章不存在', 404)
-  const { resolveCover } = await import('./pipeline')
   const settings = await getSettings(c.env)
-  // 优先级与流水线一致：先用原配图查询词重新网搜，搜不到再走 Agnes / 渐变保底
+  const oldCoverUrl = article.cover_url || ''
+
+  let resolved: { url: string; source: string } | null = null
+
+  // 1) 优先网搜新图（取 3 张候选，过滤掉旧封面，确保换到新图）
   const oldImages: ArticleImage[] = JSON.parse(article.images || '[]')
   const queries = [...new Set(oldImages.map((im) => im.query))].slice(0, 2)
   if (!queries.length) queries.push(article.title.slice(0, 24))
-  let resolved: { url: string; source: string } | null = null
+
   try {
     const { searchImages } = await import('./images')
-    const result = await searchImages(settings, queries, 1)
-    if (result.images.length) resolved = { url: result.images[0].url, source: result.images[0].source }
-  } catch { /* 落到兜底链 */ }
-  if (!resolved) resolved = await resolveCover(settings, [], article.title)
+    const result = await searchImages(settings, queries, 3)
+    const newImage = result.images.find((im) => im.url && im.url !== oldCoverUrl)
+    if (newImage) {
+      resolved = { url: newImage.url, source: newImage.source }
+    }
+  } catch { /* 忽略网搜异常 */ }
+
+  // 2) 若网搜无新图，尝试用 Agnes AI 重新绘制一张高契合度封面
+  if (!resolved && settings.agnes_api_key) {
+    try {
+      const { agnesGenerate, agnesNewsPrompt } = await import('./agnes')
+      const url = await agnesGenerate(settings, agnesNewsPrompt(article.title, '公众号封面插画'), '1024x1024')
+      resolved = { url, source: 'agnes' }
+    } catch { /* 忽略 Agnes 异常 */ }
+  }
+
+  // 3) 兜底：渐变封面
+  if (!resolved) {
+    const { resolveCover } = await import('./pipeline')
+    resolved = await resolveCover(settings, [], article.title)
+  }
+
   await updateArticle(c.env, id, { cover_url: resolved.url, cover_source: resolved.source })
-  return ok(c, { cover_source: resolved.source, is_data_uri: resolved.url.startsWith('data:') })
+  return ok(c, { cover_url: resolved.url, cover_source: resolved.source, is_data_uri: resolved.url.startsWith('data:') })
 }
 
 /** 重新去AI化：对现有文章再跑一轮核验闭环（改写+复检），并重渲染排版 */

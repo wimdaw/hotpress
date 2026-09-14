@@ -608,7 +608,7 @@ async function loadTopics() {
         '<span class="chip chip--gray">' + escapeHtml(g.sector || '综合') + '</span>' +
         '<span>得分 ' + g.score + '</span></span></span>' +
         (g.hot ? '<span class="topic-row__hot">🔥 ' + escapeHtml(g.hot) + '</span>' : '') +
-        '<button class="btn btn-s" data-write="' + escapeHtml(g.key) + '" style="flex:0 0 auto;"><i class="fas fa-pen"></i>写稿</button></div>'
+        '<button class="btn btn-s" data-write="' + escapeHtml(g.key) + '" data-title="' + escapeHtml(g.title) + '" style="flex:0 0 auto;"><i class="fas fa-pen"></i>写稿</button></div>'
     }).join('') : '<div class="empty-state"><i class="fas fa-inbox"></i><h3>暂无热点</h3><p>点击「抓取热点」开始。</p></div>') +
     '</div></div>' +
     '<div class="workspace-section"><div class="section-heading section-heading--admin"><div><h2>原始条目</h2><p>受分类 / 板块筛选影响，每页 100 条。</p></div></div></div>' +
@@ -641,44 +641,162 @@ async function loadTopics() {
     sf.onchange = function () { topicFilter.sector = sf.value === '全部' ? '' : sf.value; topicPage.offset = 0; fitSectorSelect(sf); loadTopics() }
   }
   document.querySelectorAll('[data-write]').forEach(function (b) {
-    b.onclick = function () { writeByKey(b.dataset.write, false, b) }
+    b.onclick = function () { writeByKey(b.dataset.write, b.dataset.title || '', b) }
   })
   var tp = document.getElementById('tp-prev')
   var tn = document.getElementById('tp-next')
   if (tp) tp.onclick = function () { topicPage.offset = Math.max(0, topicPage.offset - topicPage.limit); loadTopics() }
   if (tn) tn.onclick = function () { topicPage.offset += topicPage.limit; loadTopics() }
 }
+function showWriteModal(title) {
+  var old = document.getElementById('write-modal-overlay')
+  if (old) old.remove()
+  var ov = document.createElement('div')
+  ov.className = 'modal-o'
+  ov.id = 'write-modal-overlay'
+  ov.innerHTML =
+    '<div class="modal" style="max-width:38rem;width:92%;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-xs);">' +
+        '<h3 style="margin:0;font-size:1.125rem;display:flex;align-items:center;gap:.5rem;"><i class="fas fa-pen-nib" style="color:var(--color-accent);"></i>AI 创作与核验过程</h3>' +
+        '<span id="wm-timer" class="chip chip--gray" style="font-family:var(--font-mono);font-size:.75rem;">0s</span>' +
+      '</div>' +
+      '<p class="mu" style="margin-bottom:var(--space-md);line-height:1.4;word-break:break-all;"><strong>选题：</strong>' + escapeHtml(title || '当前选中话题') + '</p>' +
+      '<div style="display:grid;gap:.5rem;margin-bottom:var(--space-md);background:var(--color-bg-subtle, #f9fafb);padding:.875rem 1rem;border-radius:var(--radius-md);border:1px solid var(--color-border);">' +
+        '<div id="wstep-1" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;"><i class="fas fa-spinner fa-spin" style="color:var(--color-accent);width:1.2rem;"></i><span>[1/4] 检索整理各平台事实素材与背景...</span></div>' +
+        '<div id="wstep-2" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;color:var(--color-muted);"><i class="far fa-circle" style="width:1.2rem;"></i><span>[2/4] 资深主编撰写 1800 字爆款正文（黄金骨架）...</span></div>' +
+        '<div id="wstep-3" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;color:var(--color-muted);"><i class="far fa-circle" style="width:1.2rem;"></i><span>[3/4] AIGC 检测官审查 & 智能去AI化多轮改写（≤40分门禁）...</span></div>' +
+        '<div id="wstep-4" style="display:flex;align-items:center;gap:.625rem;font-size:.875rem;color:var(--color-muted);"><i class="far fa-circle" style="width:1.2rem;"></i><span>[4/4] 检索无水印配图并完成公众号排版渲染...</span></div>' +
+      '</div>' +
+      '<div style="margin-bottom:var(--space-md);">' +
+        '<label style="display:block;font-size:.75rem;color:var(--color-muted);margin-bottom:.25rem;">详细执行日志</label>' +
+        '<pre id="wm-log" style="margin:0;padding:.75rem;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.75rem;line-height:1.6;max-height:14rem;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">🚀 开始组织选题素材...\n</pre>' +
+      '</div>' +
+      '<div id="wm-actions" style="display:flex;justify-content:flex-end;gap:.5rem;">' +
+        '<button class="btn btn-s" id="wm-close" disabled><i class="fas fa-spinner fa-spin"></i> 正在创作，请稍候…</button>' +
+      '</div>' +
+    '</div>'
+  document.body.appendChild(ov)
+  var timerEl = document.getElementById('wm-timer')
+  var logEl = document.getElementById('wm-log')
+  var closeBtn = document.getElementById('wm-close')
+  var seconds = 0
+  var timer = setInterval(function () {
+    seconds++
+    if (timerEl) timerEl.textContent = seconds + 's'
+    if (seconds === 3) {
+      setStep(2, 'active')
+      appendLog('✍️ 选题素材准备完毕，大模型正在撰写 1800 字正文...')
+    } else if (seconds === 13) {
+      setStep(2, 'done')
+      setStep(3, 'active')
+      appendLog('🤖 正文初稿完成，正在进行 AIGC 痕迹审查与多轮去AI化改写...')
+    } else if (seconds === 23) {
+      appendLog('✏️ 正在定向消除模板套话、注入长短句呼吸感...')
+    }
+  }, 1000)
+  function appendLog(text) {
+    if (!logEl) return
+    logEl.textContent += text + '\n'
+    logEl.scrollTop = logEl.scrollHeight
+  }
+  function setStep(idx, state) {
+    var el = document.getElementById('wstep-' + idx)
+    if (!el) return
+    var icon = el.querySelector('i')
+    if (state === 'active') {
+      el.style.color = 'var(--color-text)'
+      if (icon) { icon.className = 'fas fa-spinner fa-spin'; icon.style.color = 'var(--color-accent)' }
+    } else if (state === 'done') {
+      el.style.color = 'var(--color-success, #10b981)'
+      if (icon) { icon.className = 'fas fa-check-circle'; icon.style.color = 'var(--color-success, #10b981)' }
+    } else if (state === 'fail') {
+      el.style.color = 'var(--color-danger, #ef4444)'
+      if (icon) { icon.className = 'fas fa-times-circle'; icon.style.color = 'var(--color-danger, #ef4444)' }
+    }
+  }
+  return {
+    appendLog: appendLog,
+    finish: function (res) {
+      clearInterval(timer)
+      setStep(1, 'done')
+      setStep(2, 'done')
+      setStep(3, 'done')
+      setStep(4, 'done')
+      appendLog('--------------------------------------------------')
+      if (res && res.log && res.log.length) {
+        appendLog(res.log.join('\n'))
+      }
+      appendLog('🎉 创作完成！成稿：《' + (res.title || '') + '》')
+      if (closeBtn) {
+        closeBtn.disabled = false
+        closeBtn.innerHTML = '<i class="fas fa-arrow-right"></i> 前往文章管理'
+        closeBtn.className = 'btn btn-p'
+        closeBtn.onclick = function () {
+          ov.remove()
+          switchTab('articles')
+        }
+      }
+      if (res && res.id) {
+        var prevBtn = document.createElement('a')
+        prevBtn.className = 'btn btn-s'
+        prevBtn.href = '/article/' + res.id
+        prevBtn.target = '_blank'
+        prevBtn.innerHTML = '<i class="fas fa-eye"></i> 预览'
+        document.getElementById('wm-actions').insertBefore(prevBtn, closeBtn)
+      }
+    },
+    error: function (errMsg) {
+      clearInterval(timer)
+      setStep(3, 'fail')
+      appendLog('❌ 创作中断: ' + errMsg)
+      if (closeBtn) {
+        closeBtn.disabled = false
+        closeBtn.textContent = '关闭'
+        closeBtn.className = 'btn btn-d'
+        closeBtn.onclick = function () { ov.remove() }
+      }
+    }
+  }
+}
 async function runSelectedWrites() {
   var btn = document.getElementById('btn-run2')
-  var keys = Array.prototype.map.call(document.querySelectorAll('.sel-check:checked'), function (cb) { return cb.dataset.key })
-  if (!keys.length) { toast('请先勾选选题', 'error'); return }
+  var checkedBoxes = Array.prototype.slice.call(document.querySelectorAll('.sel-check:checked'))
+  if (!checkedBoxes.length) { toast('请先勾选选题', 'error'); return }
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 批量写作中…' }
-  toast('开始创作 ' + keys.length + ' 篇，请稍候…', 'info')
+  var modal = showWriteModal('批量创作（共 ' + checkedBoxes.length + ' 篇）')
   try {
-    for (var i = 0; i < keys.length; i++) await writeByKey(keys[i], true)
-    switchTab('articles')
+    for (var i = 0; i < checkedBoxes.length; i++) {
+      var key = checkedBoxes[i].dataset.key
+      modal.appendLog('\n[' + (i + 1) + '/' + checkedBoxes.length + '] 正在创作成稿...')
+      var d = await api('/admin/api/write-article', { method: 'POST', body: { key: key } })
+      if (d.success) {
+        modal.appendLog('✅ 第 ' + (i + 1) + ' 篇成稿：《' + d.data.title + '》')
+      } else {
+        modal.appendLog('❌ 第 ' + (i + 1) + ' 篇失败: ' + (d.message || '未知错误'))
+      }
+    }
+    modal.finish({ title: '批量成稿完成' })
+  } catch (err) {
+    modal.error(err.message || String(err))
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-pen-nib"></i>为选中选题写稿' }
   }
 }
-async function writeByKey(key, silent, btnEl) {
+async function writeByKey(key, title, btnEl) {
   if (btnEl) {
     btnEl.disabled = true
     btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创作中…'
   }
-  if (!silent) toast('正在组织素材、LLM创作并进行去AI化核验，约需20~30秒，请稍候…', 'info')
+  var modal = showWriteModal(title || key)
   try {
     var d = await api('/admin/api/write-article', { method: 'POST', body: { key: key } })
     if (d.success) {
-      toast('成稿成功：《' + d.data.title + '》', 'success')
-      if (!silent) {
-        setTimeout(function () { switchTab('articles') }, 800)
-      }
+      modal.finish(d.data)
     } else {
-      toast(d.message || '创作失败', 'error')
+      modal.error(d.message || '创作失败')
     }
   } catch (err) {
-    toast('创作请求异常: ' + (err.message || err), 'error')
+    modal.error('请求网络异常: ' + (err.message || err))
   } finally {
     if (btnEl) {
       btnEl.disabled = false
@@ -801,7 +919,7 @@ async function loadArticleList() {
     var cover = a.cover_url || (imgs[0] && imgs[0].url) || ''
     return '<tr data-id="' + escapeHtml(a.id) + '">' +
       '<td><input type="checkbox" class="art-chk" data-id="' + escapeHtml(a.id) + '" data-status="' + escapeHtml(a.status) + '" style="width:1rem;height:1rem;accent-color:var(--color-accent);"></td>' +
-      '<td>' + (cover ? '<img class="img-thumb" style="width:3.6rem;height:2.4rem;" src="' + escapeHtml(cover) + '" alt="" loading="lazy">' : '<span class="key-icon" style="width:2.4rem;height:1.7rem;"><i class="fas fa-image"></i></span>') + '</td>' +
+      '<td>' + (cover ? '<img class="img-thumb" style="width:3.6rem;height:2.4rem;object-fit:cover;border-radius:var(--radius-xs);" src="' + escapeHtml(cover) + (cover.startsWith('data:') ? '' : (cover.includes('?') ? '&' : '?') + '_t=' + Date.now()) + '" alt="" loading="lazy">' : '<span class="key-icon" style="width:2.4rem;height:1.7rem;"><i class="fas fa-image"></i></span>') + '</td>' +
       '<td class="t-title" title="' + escapeHtml(a.title) + (a.digest ? '\\n\\n摘要：' + escapeHtml(a.digest) : '') + '"><a class="tt" href="/article/' + escapeHtml(a.id) + '" target="_blank" style="color:inherit;text-decoration:none;">' + escapeHtml(a.title) + '</a>' +
         '<span class="td-digest">' + escapeHtml(a.digest || '') + '</span></td>' +
       '<td>' + genreChipHtml(a.genre) + '</td>' +
@@ -889,8 +1007,17 @@ function bindArticleActions() {
   document.querySelectorAll('[data-recover]').forEach(function (b) {
     b.onclick = async function () {
       b.disabled = true
+      b.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'
+      toast('正在重新检索并生成新封面，请稍候…', 'info')
       var d = await api('/admin/api/articles/' + b.dataset.recover + '/recover-cover', { method: 'POST' })
-      if (d.success) { toast('封面已更新：' + d.data.cover_source); loadArticleList() } else { toast(d.message || '失败', 'error'); b.disabled = false }
+      if (d.success) {
+        toast('封面已成功更新（来源：' + d.data.cover_source + '）', 'success')
+        loadArticleList()
+      } else {
+        toast(d.message || '更换封面失败', 'error')
+        b.disabled = false
+        b.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>'
+      }
     }
   })
 }
