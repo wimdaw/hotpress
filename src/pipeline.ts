@@ -153,8 +153,17 @@ export async function createArticleForGroup(
   let images: ArticleImage[] = []
   const imgTarget = Math.max(0, parseInt(settings.img_count || '3', 10))
   if (imgTarget > 0) {
+    // 确保搜图词紧贴核心实体：若首个搜图词未包含核心词，前置补入文章标题实体
+    const cleanTopic = group.title.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ' ').trim()
+    const coreWords = cleanTopic.split(/\s+/).filter((w) => w.length >= 2).slice(0, 3).join(' ')
+    const finalQueries = [...(draft.image_queries || [])]
+    if (coreWords && (!finalQueries.length || !finalQueries[0].includes(coreWords.slice(0, 4)))) {
+      finalQueries.unshift(coreWords)
+    }
+    const finalEnQueries = [...(draft.image_queries_en || [])]
+
     try {
-      const result = await searchImages(settings, draft.image_queries, imgTarget, draft.image_queries_en || [])
+      const result = await searchImages(settings, finalQueries, imgTarget, finalEnQueries)
       images = result.images
       log.push(...result.log.map((l) => '🖼 ' + l))
     } catch (e: any) {

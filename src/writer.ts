@@ -61,7 +61,11 @@ const OUTPUT_SCHEMA = `{
   "image_queries_en": ["english query 1", "query 2", "query 3"],
   "tags": ["话题标签1", "标签2"]
 }`
-const OUTPUT_SCHEMA_NOTE = `image_queries / image_queries_en 要求：各 2-3 个，两数组一一对应。必须是「通用视觉场景词」（如 "法庭 法槌"、"城市 夜景"），绝不能用具体事件名、人名、专有名词；不要人物肖像特写类需求。`
+const OUTPUT_SCHEMA_NOTE = `image_queries / image_queries_en 要求：严格输出 3 个，两数组一一对应，必须高度贴合文章核心实体与段落内容：
+1. 第 1 个词必须是文章最核心的【具体产品/品牌/人物/事件实体词】（如 "iPhone 18 Pro 真机"、"苹果手机 iPhone"、"蔚来 萤火虫 汽车"、"宇树科技 机器人"），用于封面大图；
+2. 第 2 个词为文章主体涉及的关键场景或核心人物（如 "库克 苹果发布会"、"手机 专卖店 体验"、"人形机器人 现场演示"）；
+3. 第 3 个词为行情、走势、现场细节或相关概念（如 "智能手机 降价 促销"、"科技展会 展台"）。
+绝不要输出宽泛无关的"城市夜景"、"办公楼玻璃幕墙"、"生产流水线"等空洞词汇！`
 
 /** 体裁角度（爆款长度下的三种切入方式；字数均按 1800 标准走） */
 const GENRE_ANGLES: Record<string, string> = {
