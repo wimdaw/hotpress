@@ -516,7 +516,10 @@ function showPipelineModal(push) {
     '<div class="modal" style="max-width:40rem;width:94%;">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-xs);">' +
         '<h3 style="margin:0;font-size:1.125rem;display:flex;align-items:center;gap:.5rem;"><i class="fas fa-diagram-project" style="color:var(--color-accent);"></i>流水线全流程执行过程</h3>' +
-        '<span id="wm-timer" class="chip chip--gray" style="font-family:var(--font-mono);font-size:.75rem;">0s</span>' +
+        '<div style="display:flex;align-items:center;gap:.5rem;">' +
+          '<span id="wm-timer" class="chip chip--gray" style="font-family:var(--font-mono);font-size:.75rem;">0s</span>' +
+          '<button type="button" class="btn btn-gh" id="wm-x" style="padding:.2rem .45rem;color:var(--color-muted);font-size:1.1rem;line-height:1;" title="关闭窗口（后台继续运行）"><i class="fas fa-times"></i></button>' +
+        '</div>' +
       '</div>' +
       '<p class="mu" style="margin-bottom:var(--space-md);line-height:1.4;">热点抓取 → 智能选题 → 逐篇长文创作 → 去AI化质检（≤40分门禁）→ 配图' + (push ? ' → 微信草稿箱推送' : '') + '</p>' +
       '<div style="display:grid;gap:.5rem;margin-bottom:var(--space-md);background:var(--color-bg-subtle, #f9fafb);padding:.875rem 1rem;border-radius:var(--radius-md);border:1px solid var(--color-border);">' +
@@ -531,13 +534,14 @@ function showPipelineModal(push) {
         '<pre id="wm-log" style="margin:0;padding:.75rem;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.75rem;line-height:1.6;max-height:15rem;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">🚀 流水线已启动，正在发起热点抓取与素材准备...</pre>' +
       '</div>' +
       '<div id="wm-actions" style="display:flex;justify-content:flex-end;gap:.5rem;">' +
-        '<button class="btn btn-s" id="wm-close" disabled><i class="fas fa-spinner fa-spin"></i> 正在全流程执行，请稍候…</button>' +
+        '<button class="btn btn-s" id="wm-close"><i class="fas fa-arrow-down-long"></i> 关闭（后台继续执行）</button>' +
       '</div>' +
     '</div>'
   document.body.appendChild(ov)
   var timerEl = document.getElementById('wm-timer')
   var logEl = document.getElementById('wm-log')
   var closeBtn = document.getElementById('wm-close')
+  var xBtn = document.getElementById('wm-x')
   var seconds = 0
   var timer = setInterval(function () {
     seconds++
@@ -560,6 +564,17 @@ function showPipelineModal(push) {
       appendLog('🖼️ 去AI化核验达标，正在检索高清配图' + (push ? '并推送到微信草稿箱' : '') + '...')
     }
   }, 1000)
+
+  var extOnClose = null
+  function doClose() {
+    clearInterval(timer)
+    if (extOnClose) extOnClose()
+    ov.remove()
+  }
+  if (closeBtn) closeBtn.onclick = doClose
+  if (xBtn) xBtn.onclick = doClose
+  ov.onclick = function (e) { if (e.target === ov) doClose() }
+
   function appendLog(text) {
     if (!logEl) return
     logEl.textContent += text + '\\n'
@@ -583,6 +598,8 @@ function showPipelineModal(push) {
   return {
     appendLog: appendLog,
     setStep: setStep,
+    onClose: function (fn) { extOnClose = fn },
+    close: doClose,
     finish: function (res) {
       clearInterval(timer)
       setStep(1, 'done')
@@ -597,11 +614,10 @@ function showPipelineModal(push) {
       var s = res && res.summary ? res.summary : {}
       appendLog('🎉 流水线执行成功！选题 ' + (s.topicsSelected || 0) + ' · 成稿 ' + (s.articlesCreated || 0) + ' · 推送 ' + (s.pushed || 0))
       if (closeBtn) {
-        closeBtn.disabled = false
         closeBtn.innerHTML = '<i class="fas fa-arrow-right"></i> 前往文章管理'
         closeBtn.className = 'btn btn-p'
         closeBtn.onclick = function () {
-          ov.remove()
+          doClose()
           switchTab('articles')
         }
       }
@@ -611,10 +627,9 @@ function showPipelineModal(push) {
       setStep(4, 'fail')
       appendLog('❌ 流水线执行中断: ' + errMsg)
       if (closeBtn) {
-        closeBtn.disabled = false
         closeBtn.textContent = '关闭'
         closeBtn.className = 'btn btn-d'
-        closeBtn.onclick = function () { ov.remove() }
+        closeBtn.onclick = doClose
       }
     }
   }
@@ -643,6 +658,9 @@ function trackActiveRun(runId) {
       }
     }
   }, 2500)
+  modal.onClose(function () {
+    clearInterval(pollTimer)
+  })
 }
 // 流水线流式运行：打开全流程模态弹窗实时追踪
 async function runPipelineStreaming(push, btn) {
@@ -797,7 +815,10 @@ function showWriteModal(title) {
     '<div class="modal" style="max-width:38rem;width:92%;">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-xs);">' +
         '<h3 style="margin:0;font-size:1.125rem;display:flex;align-items:center;gap:.5rem;"><i class="fas fa-pen-nib" style="color:var(--color-accent);"></i>AI 创作与核验过程</h3>' +
-        '<span id="wm-timer" class="chip chip--gray" style="font-family:var(--font-mono);font-size:.75rem;">0s</span>' +
+        '<div style="display:flex;align-items:center;gap:.5rem;">' +
+          '<span id="wm-timer" class="chip chip--gray" style="font-family:var(--font-mono);font-size:.75rem;">0s</span>' +
+          '<button type="button" class="btn btn-gh" id="wm-x" style="padding:.2rem .45rem;color:var(--color-muted);font-size:1.1rem;line-height:1;" title="关闭窗口（后台继续运行）"><i class="fas fa-times"></i></button>' +
+        '</div>' +
       '</div>' +
       '<p class="mu" style="margin-bottom:var(--space-md);line-height:1.4;word-break:break-all;"><strong>选题：</strong>' + escapeHtml(title || '当前选中话题') + '</p>' +
       '<div style="display:grid;gap:.5rem;margin-bottom:var(--space-md);background:var(--color-bg-subtle, #f9fafb);padding:.875rem 1rem;border-radius:var(--radius-md);border:1px solid var(--color-border);">' +
@@ -811,13 +832,14 @@ function showWriteModal(title) {
         '<pre id="wm-log" style="margin:0;padding:.75rem;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.75rem;line-height:1.6;max-height:14rem;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">🚀 开始组织选题素材...</pre>' +
       '</div>' +
       '<div id="wm-actions" style="display:flex;justify-content:flex-end;gap:.5rem;">' +
-        '<button class="btn btn-s" id="wm-close" disabled><i class="fas fa-spinner fa-spin"></i> 正在创作，请稍候…</button>' +
+        '<button class="btn btn-s" id="wm-close"><i class="fas fa-arrow-down-long"></i> 关闭（后台继续执行）</button>' +
       '</div>' +
     '</div>'
   document.body.appendChild(ov)
   var timerEl = document.getElementById('wm-timer')
   var logEl = document.getElementById('wm-log')
   var closeBtn = document.getElementById('wm-close')
+  var xBtn = document.getElementById('wm-x')
   var seconds = 0
   var timer = setInterval(function () {
     seconds++
@@ -833,6 +855,14 @@ function showWriteModal(title) {
       appendLog('✏️ 正在定向消除模板套话、注入长短句呼吸感...')
     }
   }, 1000)
+
+  function doClose() {
+    clearInterval(timer)
+    ov.remove()
+  }
+  if (closeBtn) closeBtn.onclick = doClose
+  if (xBtn) xBtn.onclick = doClose
+  ov.onclick = function (e) { if (e.target === ov) doClose() }
   function appendLog(text) {
     if (!logEl) return
     logEl.textContent += text + '\\n'
