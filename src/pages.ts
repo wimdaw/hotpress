@@ -223,6 +223,11 @@ export async function renderArticlePage(c: Context<{ Bindings: Env }>, id: strin
   if (!a) return c.notFound()
   const settings = await getSettings(c.env)
   const themeLabel = ({ clean: '简洁专业', sspai: '活力橙', navy: '沉稳深蓝' } as any)[a.theme || settings.theme] || a.theme
+  let html = a.html
+  if (!html && a.markdown) {
+    const { mdToWechatHtml } = await import('./markdown')
+    html = mdToWechatHtml(a.markdown, a.theme || settings.theme)
+  }
   return c.html(`<!DOCTYPE html><html lang="zh-CN">
 ${head(a.title)}
 <body class="site-page home-page">
@@ -243,7 +248,7 @@ ${topbar(false)}
     <dt>作者</dt><dd>${esc(a.author || '（默认）')}</dd>
     <dt>创建时间</dt><dd>${esc(a.created_at.replace('T', ' ').slice(0, 19))}</dd>
   </dl>
-  <div class="wx-preview">${a.html || '<p>（正文为空）</p>'}</div>
+  <div class="wx-preview">${html || '<p>（正文为空）</p>'}</div>
 </main>
 ${renderSiteFooter(SITE_CONFIG.title)}
 </body></html>`, 200, { 'Cache-Control': 'no-store' })
