@@ -109,7 +109,11 @@ app.get('/admin/logout', handleLogout)
 
 // ===== 后台（需会话） =====
 app.use('/admin/*', adminAuthMiddleware)
-app.get('/admin', (c) => renderAdminPage(c))
+app.get('/admin', async (c) => {
+  const res = await renderAdminPage(c)
+  res.headers.set('Cache-Control', 'no-store, must-revalidate')
+  return res
+})
 
 app.get('/admin/api/status', handleStatus)
 
