@@ -212,7 +212,7 @@ function targetRange(genre: string): string {
 export async function humanizeAndVerify(settings: AppSettings, markdown: string, genre: string): Promise<HumanizeResult> {
   const log: string[] = []
   const threshold = Math.max(10, Math.min(parseInt(settings.humanize_threshold || '40', 10), 90))
-  const maxRounds = Math.max(1, Math.min(parseInt(settings.humanize_max_rounds || '2', 10), 4))
+  const maxRounds = Math.max(1, Math.min(parseInt(settings.humanize_max_rounds || '3', 10), 5))
 
   let current = markdown
   let scan = await aiScan(settings, current)
@@ -222,29 +222,30 @@ export async function humanizeAndVerify(settings: AppSettings, markdown: string,
 
   let best = { markdown: current, score: scan.aiScore, signals: scan.signals }
   let rounds = 0
-  while (scan.aiScore > threshold && rounds < maxRounds) {
+  while (best.score > threshold && rounds < maxRounds) {
     rounds++
     try {
       const raw = await chatJson(
         settings,
         [
-          { role: 'system', content: '你是资深人类作者，文字有呼吸感。只输出 JSON。' },
-          { role: 'user', content: rewritePrompt(current, scan.signals.map((s) => `${s.type}:${s.reason}（例：${s.quote}）`), targetRange(genre)) },
+          { role: 'system', content: '你是资深人类作家与公众号主编，擅长打破AI腔调，语言有真实呼吸感、长短句错落、情感鲜明。只输出 JSON。' },
+          { role: 'user', content: rewritePrompt(best.markdown, best.signals.map((s) => `${s.type}:${s.reason}（例：${s.quote}）`), targetRange(genre)) },
         ],
         8192,
         0.9
       )
       const rewritten = String(raw.markdown || '').trim()
       if (!rewritten || countChineseChars(rewritten) < countChineseChars(current) * 0.7) {
-        log.push(`✏️ 第 ${rounds} 轮改写结果异常（字数骤减），丢弃`)
-        break
+        log.push(`✏️ 第 ${rounds} 轮改写结果异常（字数骤减），跳过本轮`)
+        continue
       }
       const rescan = await aiScan(settings, rewritten)
-      log.push(`✏️ 第 ${rounds} 轮去AI化改写后复检 ${rescan.aiScore} 分（上轮 ${scan.aiScore}）`)
-      if (rescan.aiScore < best.score) best = { markdown: rewritten, score: rescan.aiScore, signals: rescan.signals }
+      log.push(`✏️ 第 ${rounds} 轮去AI化改写后复检 ${rescan.aiScore} 分（上轮 ${best.score}）`)
+      if (rescan.aiScore < best.score) {
+        best = { markdown: rewritten, score: rescan.aiScore, signals: rescan.signals }
+      }
       current = rewritten
-      scan = rescan
-      if (scan.aiScore <= threshold) { log.push(`✅ 已达阈值（≤${threshold}）`); break }
+      if (best.score <= threshold) { log.push(`✅ 已达发布标准（${best.score} 分 ≤ 阈值 ${threshold}）`); break }
     } catch (e: any) {
       log.push(`✏️ 第 ${rounds} 轮改写失败: ${e?.message || e}`)
       break

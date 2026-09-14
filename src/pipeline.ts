@@ -126,6 +126,8 @@ export async function createArticleForGroup(
   let aiScore: number | null = null
   let aiSignals: AiSignal[] = []
   let humanizeRounds = 0
+  const threshold = Math.max(10, Math.min(parseInt(settings.humanize_threshold || '40', 10), 90))
+
   if (settings.humanize_enabled === '1') {
     const hm = await humanizeAndVerify(settings, draft.markdown, genre)
     draft = { ...draft, markdown: hm.markdown }
@@ -133,9 +135,11 @@ export async function createArticleForGroup(
     aiSignals = hm.signals
     humanizeRounds = hm.rounds
     log.push(...hm.log)
-    log.push(hm.aiScore <= parseInt(settings.humanize_threshold || '40', 10)
-      ? `🛡️ 去AI化核验通过（${hm.aiScore} 分）`
-      : `⚠️ 去AI化核验未达标（${hm.aiScore} 分 > 阈值 ${settings.humanize_threshold}），该篇将禁止推送`)
+    if (hm.aiScore > threshold) {
+      log.push(`🚫 去AI化核验未达标（${hm.aiScore} 分 > 阈值 ${threshold}），按规则舍弃该篇，不存入文章管理`)
+      throw new Error(`去AI化未达标（最终 ${hm.aiScore} 分，发布门槛 ≤${threshold} 分），已自动丢弃未达标草稿`)
+    }
+    log.push(`🛡️ 去AI化核验通过（${hm.aiScore} 分 ≤ 阈值 ${threshold}）`)
   } else {
     try {
       const scan = await aiScan(settings, draft.markdown)
