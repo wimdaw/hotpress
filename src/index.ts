@@ -88,6 +88,11 @@ app.get('/api/articles', async (c) => {
   })
 })
 
+/** 静态发布 Windows 剪辑工具安装包 */
+app.get('/douyin-auto-clip-windows.zip', (c) => {
+  return (c.env as any).ASSETS ? (c.env as any).ASSETS.fetch(c.req.raw) : c.notFound()
+})
+
 /**
  * 外部定时器入口（Pages 部署用）：POST /api/cron/run，请求头 X-CRON-Secret 与设置中的
  * cron_secret（或环境变量 CRON_SECRET）一致。
